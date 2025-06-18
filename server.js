@@ -14,7 +14,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:5173', // IMPORTANT: Replace with your React app's URL
+  origin: 'https://agri-dynamic-1kq7.vercel.app/', // IMPORTANT: Replace with your React app's URL
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true,
 }));
