@@ -1,83 +1,88 @@
-// controllers/authController.js
-const User = require('../models/userModel'); // Adjust path if needed
-const bcrypt = require('bcrypt'); // Already imported in your userModel, but good to have here too for clarity
-const jwt = require('jsonwebtoken'); // Assuming you have this for token generation
+const User = require('../models/userModel');
+const jwt = require('jsonwebtoken');
+const asyncHandler = require('express-async-handler'); // Import asyncHandler
 
-// Helper function to generate a JWT (as seen in your admin routes snippet)
+// Replace this with your real JWT secret in production
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+
 const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-        expiresIn: '1d', // Token expires in 1 day
+  return jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '7d' });
+};
+
+exports.register = asyncHandler(async (req, res) => { // Wrap in asyncHandler
+  const { name, email, password } = req.body;
+
+  if (!name || !email || !password)
+    return res.status(400).json({ message: 'All fields are required' });
+
+  try {
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
+      return res.status(400).json({ message: 'User already exists' });
+
+    const user = await User.create({ name, email, password });
+    const token = generateToken(user._id);
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
     });
-};
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
-// Register User
-exports.register = async (req, res) => {
-    const { name, email, password } = req.body;
+exports.login = asyncHandler(async (req, res) => { // Wrap in asyncHandler
+  const { email, password } = req.body;
 
-    try {
-        let user = await User.findOne({ email });
-        if (user) {
-            return res.status(400).json({ msg: 'User already exists' });
-        }
+  if (!email || !password)
+    return res.status(400).json({ message: 'Email and password are required' });
 
-        user = new User({
-            name,
-            email,
-            password, // Password will be hashed by pre-save hook in userModel
-        });
+  try {
+    const user = await User.findOne({ email });
+    if (!user || !(await user.matchPassword(password)))
+      return res.status(401).json({ message: 'Invalid email or password' });
 
-        await user.save();
+    const token = generateToken(user._id);
 
-        const token = generateToken(user._id);
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
-        res.status(201).json({
-            msg: 'User registered successfully',
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-            },
-        });
+// New: Update User Profile
+exports.updateUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user.id); // req.user is populated by the protect middleware
 
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+  if (user) {
+    user.name = req.body.name || user.name;
+    user.email = req.body.email || user.email;
+
+    if (req.body.password) {
+      user.password = req.body.password; // Mongoose pre-save hook will hash this
     }
-};
 
+    const updatedUser = await user.save();
 
-// Login User
-exports.login = async (req, res) => {
-    // For login, your schema uses 'email' as unique identifier, not 'username'.
-    // Adjust frontend to send 'email' or change schema if 'username' is truly intended for login.
-    const { email, password } = req.body; // Changed from 'username' to 'email'
-
-    try {
-        let user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ msg: 'Invalid credentials' });
-        }
-
-        const isMatch = await user.matchPassword(password);
-        if (!isMatch) {
-            return res.status(400).json({ msg: 'Invalid credentials' });
-        }
-
-        const token = generateToken(user._id);
-
-        res.json({
-            msg: 'Logged in successfully',
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-            },
-        });
-
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-};
+    res.json({
+      id: updatedUser._id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});

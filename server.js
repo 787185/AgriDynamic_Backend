@@ -12,9 +12,24 @@ const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+  'https://agri-dynamic-1kq7.vercel.app', // Your deployed frontend
+  'http://localhost:5173',               // Your local frontend development server
+  // Add any other local development ports if you use them, e.g., 'http://127.0.0.1:5173'
+];
+
+
 app.use(express.json());
 app.use(cors({
-  origin: 'https://agri-dynamic-1kq7.vercel.app', // IMPORTANT: Replace with your React app's URL
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   credentials: true,
 }));
