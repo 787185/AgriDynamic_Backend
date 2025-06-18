@@ -1,6 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const { register, login, updateUserProfile } = require('../controllers/authController'); // Import updateUserProfile
+const { register, login, updateUserProfile, getProfile } = require('../controllers/authController'); // Import updateUserProfile
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -16,5 +16,10 @@ router.post('/register', register);
 
 // Login
 router.post('/login', login);
+
+router.get('/profile', protect, getProfile); // <--- ADD THIS LINE!
+
+// PUT Update User Profile (the one causing the 404)
+router.put('/profile', protect, updateUserProfile); // <--- ADD THIS LINE!
 
 module.exports = router;

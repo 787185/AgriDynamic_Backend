@@ -86,3 +86,31 @@ exports.updateUserProfile = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 });
+
+// @desc    Get user profile
+// @route   GET /api/auth/profile
+// @access  Private
+exports.getProfile = asyncHandler(async (req, res) => {
+  // req.user is populated by the protect middleware (from the token payload)
+  const user = await User.findById(req.user.id).select('-password'); // Exclude password hash from response
+
+  if (user) {
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      // Add other user fields if you want them in the response, e.g., isAdmin: user.isAdmin
+    });
+  } else {
+    res.status(404);
+    throw new Error('User not found');
+  }
+});
+
+// ... (ensure all your exports are correct at the end of the file) ...
+// module.exports = {
+//   register,
+//   login,
+//   getProfile, // <--- Make sure this is exported!
+//   updateUserProfile,
+// };
