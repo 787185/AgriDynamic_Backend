@@ -1,19 +1,13 @@
+// routes/auth.js
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const { register, login } = require('../controllers/authController');
+const { register, login } = require('../controllers/authController'); // Make sure path is correct
 
 const router = express.Router();
-
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: '1d',
-  });
-};
 
 // Register
 router.post('/register', register);
 
 // Login
-router.post('/login', login);
+router.post('/login', login); // This route will now use the updated login function
 
 module.exports = router;
