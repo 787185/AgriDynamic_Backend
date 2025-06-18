@@ -59,7 +59,7 @@ const createArticle = asyncHandler(async (req, res) => {
 const getArticlesForCards = asyncHandler(async (req, res) => {
   // Check this line carefully!
   // It likely filters for published articles and specific statuses.
-  const articles = await Article.find({ status: { $in: ['completed', 'in-progress','completed','upcoming'] } }) // <-- This is the key line
+  const articles = await Article.find({ status: { $in: ['completed', 'in-progress','archived','upcoming'] } }) // <-- This is the key line
           .select('title description image createdAt contributors status') // Only selects fields for cards
           .sort({ createdAt: -1 });
 
