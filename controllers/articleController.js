@@ -70,7 +70,7 @@ const getArticlesForCards = asyncHandler(async (req, res) => {
 // @route   GET /api/articles/:id
 // @access  Public
 const getArticleById = asyncHandler(async (req, res) => {
-  const entry = await Article.findById(req.params.id).populate('author', 'name email');
+  const entry = await Article.findById(req.params.id);
 
   if (!entry) {
     res.status(404);
