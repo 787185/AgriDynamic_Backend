@@ -13,9 +13,9 @@ const app = express();
 
 // Middleware
 const allowedOrigins = [
-  'https://agri-dynamic-1kq7.vercel.app', // Your deployed frontend
-  'http://localhost:5173',               // Your local frontend development server
-  // Add any other local development ports if you use them, e.g., 'http://127.0.0.1:5173'
+  'https://agri-dynamic-1kq7.vercel.app', 
+  'http://localhost:5173',               
+  
 ];
 
 
