@@ -130,7 +130,7 @@ const deleteArticle = asyncHandler(async (req, res) => {
 
 const getArticles = asyncHandler(async (req, res) => {
   // Fetch all articles, populate author details, and sort by creation date (newest first)
-  const articles = await Article.find().populate('author', 'name email').sort({ createdAt: -1 });
+  const articles = await Article.find().sort({ createdAt: -1 });
   res.status(200).json(articles);
 });
 
