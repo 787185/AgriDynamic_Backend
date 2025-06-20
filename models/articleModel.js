@@ -19,11 +19,11 @@ const articleSchema = mongoose.Schema(
       type: String, // URL to the main image
       required: [true, 'Please provide an image URL'],
     },
-    author: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: false,
-      ref: 'User', // Refers to your User model
-    },
+    // author: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   required: false,
+    //   ref: 'User', // Refers to your User model
+    // },
     published: {
       type: Boolean,
       default: false, // Can be a draft or unpublished
