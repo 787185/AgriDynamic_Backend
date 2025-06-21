@@ -9,11 +9,15 @@ const {
   updateArticle,
   deleteArticle,
   getArticles,
+  uploadImage,
 } = require('../controllers/articleController'); 
 
 // const { protect } = require('../middleware/authMiddleware'); 
 
 router.get('/', getArticles);
+
+// Route for creating a new entry - ADD uploadImage middleware here
+router.post('/', uploadImage, createArticle);
 
 // Route for creating a new entry
 router.post('/', createArticle); 
@@ -24,7 +28,7 @@ router.get('/cards', getArticlesForCards);
 // Routes for getting, updating, and deleting a specific entry by ID
 router.route('/:id')
   .get(getArticleById)
-  .put( updateArticle)
+  .put(uploadImage, updateArticle)
   .delete( deleteArticle);
 
 
