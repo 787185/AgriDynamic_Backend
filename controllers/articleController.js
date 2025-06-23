@@ -33,73 +33,58 @@ const createArticle = asyncHandler(async (req, res) => {
   const file = req.file; // The uploaded file buffer (from multer)
   const imageUrlFromUrlInput = req.body.image; // The URL string if provided directly
 
+  // --- FIX 2: Declare finalImageUrl with let ---
   let finalImageUrl;
 
+  // --- FIX 3: Corrected validation logic for image ---
   if (!title || !description) {
-    console.log('3a. createArticle: Missing title or description.');
     res.status(400);
     throw new Error('Please include title and description.');
   }
 
-  console.log('3b. createArticle: Title and description present.');
-
   if (file) {
-    console.log('4a. createArticle: File detected, attempting Cloudinary upload.');
     try {
       const uploadResult = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
         resource_type: "auto",
         folder: "agridynamic_articles"
       });
       finalImageUrl = uploadResult.secure_url;
-      console.log('4a.i. createArticle: Cloudinary upload successful. URL:', finalImageUrl);
     } catch (error) {
-      console.error("4a.ii. Cloudinary upload failed with specific error:", error); // This should definitely show up
+      console.error("Cloudinary upload failed:", error);
       res.status(500);
       throw new Error('Image upload failed. Please try again.');
     }
   } else if (imageUrlFromUrlInput) {
-    console.log('4b. createArticle: Image URL provided directly.');
     finalImageUrl = imageUrlFromUrlInput;
   } else {
-    console.log('4c. createArticle: No file and no URL provided.');
+    // This case means no file and no URL was provided
     res.status(400);
     throw new Error('Please provide an image URL or upload an image file.');
   }
 
-  console.log('5. createArticle: Image URL resolved to:', finalImageUrl);
+  // Optional: Check for user (author) via protect middleware - uncomment if needed
+  // if (!req.user || !req.user.id) {
+  //   res.status(401);
+  //   throw new Error('Not authorized, user token required');
+  // }
 
-  // Parse contributors before creating entry
-  const parsedContributors = contributors ? JSON.parse(contributors) : [];
-  console.log('6. createArticle: Parsed contributors:', parsedContributors);
+  const newEntry = await Article.create({
+    title,
+    description,
+    image: finalImageUrl, // Save the Cloudinary URL or direct URL
+    published: published !== undefined ? published : false,
+    contributors: contributors ? JSON.parse(contributors) : [], // Parse if sent as JSON string from FormData
+    status: status || 'upcoming',
+    background,
+    methodology,
+    results,
+    conclusions,
+    recommendations,
+    application,
+  });
 
-
-  try {
-    const newEntry = await Article.create({
-      title,
-      description,
-      image: finalImageUrl,
-      published: published !== undefined ? published : false,
-      contributors: parsedContributors,
-      status: status || 'upcoming',
-      background,
-      methodology,
-      results,
-      conclusions,
-      recommendations,
-      application,
-    });
-    console.log('7. createArticle: Article created in DB. ID:', newEntry._id);
-    res.status(201).json(newEntry);
-    console.log('8. createArticle: Response sent.');
-  } catch (dbError) {
-    console.error("9. createArticle: Database creation failed:", dbError);
-    res.status(500);
-    throw new Error('Failed to create article in database.');
-  }
+  res.status(201).json(newEntry);
 });
-
-//   res.status(201).json(newEntry);
-// });
 
 // @desc    Get a subset of fields for cards view
 // @route   GET /api/articles/cards
