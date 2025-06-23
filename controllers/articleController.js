@@ -46,7 +46,7 @@ const createArticle = asyncHandler(async (req, res) => {
   if (file) {
     console.log('4a. createArticle: File detected, attempting Cloudinary upload.');
     try {
-      const uploadResult = await cloudinary.uploader.upload(file.buffer.toString('base64'), {
+      const uploadResult = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
         resource_type: "auto",
         folder: "agridynamic_articles"
       });
