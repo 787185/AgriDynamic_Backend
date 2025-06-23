@@ -83,7 +83,7 @@ const getEnquiries = asyncHandler(async (req, res) => {
 // @access  Private (Admin only) - You'll add authentication middleware later
 const updateEnquiry = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, email, message, status } = req.body;
+  const { name, email, message, status, replyMessage } = req.body;
 
   const enquiry = await Enquiry.findById(id);
 
