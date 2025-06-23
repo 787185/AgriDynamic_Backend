@@ -27,7 +27,7 @@ const createArticle = asyncHandler(async (req, res) => {
   const {
     title,
     description,
-    contributors, // This will now be a plain string like "Author 1, Author 2"
+    contributors, 
     status,
     background,
     methodology,
@@ -86,13 +86,12 @@ const createArticle = asyncHandler(async (req, res) => {
     const newEntry = await Article.create({
       title,
       description,
-      image: finalImageUrl, // Save the Cloudinary URL or direct URL
+      image: finalImageUrl, 
       published: published !== undefined ? published : false,
-      contributors: parsedContributors, // Use the parsed array
+      contributors: parsedContributors, 
       status: status || 'upcoming',
       background,
       methodology,
-      ingredients, // Make sure this is defined if used in your schema
       results,
       conclusions,
       recommendations,
