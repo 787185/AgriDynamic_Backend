@@ -10,6 +10,15 @@ const upload = multer({ storage: storage });
 
 const uploadImage = upload.single('image'); // Declare it as a local constant
 
+// Helper function to parse comma-separated string into an array
+const parseCommaSeparatedString = (str) => {
+  if (typeof str !== 'string' || str.trim() === '') {
+    return [];
+  }
+  return str.split(',').map(item => item.trim()).filter(item => item !== '');
+};
+
+
 // @desc    Create a new project/article entry
 // @route   POST /api/articles
 // @access  Private (Admin or Authorized User)
@@ -18,7 +27,7 @@ const createArticle = asyncHandler(async (req, res) => {
   const {
     title,
     description,
-    contributors,
+    contributors, // This will now be a plain string like "Author 1, Author 2"
     status,
     background,
     methodology,
@@ -33,57 +42,70 @@ const createArticle = asyncHandler(async (req, res) => {
   const file = req.file; // The uploaded file buffer (from multer)
   const imageUrlFromUrlInput = req.body.image; // The URL string if provided directly
 
-  // --- FIX 2: Declare finalImageUrl with let ---
-  let finalImageUrl;
+  let finalImageUrl; // Correctly declared with 'let'
 
-  // --- FIX 3: Corrected validation logic for image ---
   if (!title || !description) {
+    console.log('3a. createArticle: Missing title or description.');
     res.status(400);
     throw new Error('Please include title and description.');
   }
 
+  console.log('3b. createArticle: Title and description present.');
+
   if (file) {
+    console.log('4a. createArticle: File detected, attempting Cloudinary upload.');
     try {
       const uploadResult = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
         resource_type: "auto",
         folder: "agridynamic_articles"
       });
       finalImageUrl = uploadResult.secure_url;
+      console.log('4a.i. createArticle: Cloudinary upload successful. URL:', finalImageUrl);
     } catch (error) {
-      console.error("Cloudinary upload failed:", error);
+      console.error("4a.ii. Cloudinary upload failed with specific error:", error);
       res.status(500);
       throw new Error('Image upload failed. Please try again.');
     }
   } else if (imageUrlFromUrlInput) {
+    console.log('4b. createArticle: Image URL provided directly.');
     finalImageUrl = imageUrlFromUrlInput;
   } else {
-    // This case means no file and no URL was provided
+    console.log('4c. createArticle: No file and no URL provided.');
     res.status(400);
     throw new Error('Please provide an image URL or upload an image file.');
   }
 
-  // Optional: Check for user (author) via protect middleware - uncomment if needed
-  // if (!req.user || !req.user.id) {
-  //   res.status(401);
-  //   throw new Error('Not authorized, user token required');
-  // }
+  console.log('5. createArticle: Image URL resolved to:', finalImageUrl);
 
-  const newEntry = await Article.create({
-    title,
-    description,
-    image: finalImageUrl, // Save the Cloudinary URL or direct URL
-    published: published !== undefined ? published : false,
-    contributors: contributors ? JSON.parse(contributors) : [], // Parse if sent as JSON string from FormData
-    status: status || 'upcoming',
-    background,
-    methodology,
-    results,
-    conclusions,
-    recommendations,
-    application,
-  });
+  // --- FIX: Use the helper to parse contributors string ---
+  const parsedContributors = parseCommaSeparatedString(contributors);
+  console.log('6. createArticle: Parsed contributors:', parsedContributors);
 
-  res.status(201).json(newEntry);
+
+  try {
+    const newEntry = await Article.create({
+      title,
+      description,
+      image: finalImageUrl, // Save the Cloudinary URL or direct URL
+      published: published !== undefined ? published : false,
+      contributors: parsedContributors, // Use the parsed array
+      status: status || 'upcoming',
+      background,
+      methodology,
+      ingredients, // Make sure this is defined if used in your schema
+      results,
+      conclusions,
+      recommendations,
+      application,
+    });
+    console.log('7. createArticle: Article created in DB. ID:', newEntry._id);
+    res.status(201).json(newEntry);
+    console.log('8. createArticle: Response sent.');
+  } catch (dbError) {
+    console.error("9. createArticle: Database creation failed:", dbError);
+    res.status(500);
+    throw new Error('Failed to create article in database.');
+  }
 });
 
 // @desc    Get a subset of fields for cards view
@@ -136,7 +158,8 @@ const updateArticle = asyncHandler(async (req, res) => {
   if (file) {
     // If a new file is uploaded, upload to Cloudinary
     try {
-      const uploadResult = await cloudinary.uploader.upload(file.buffer.toString('base64'), {
+      // Changed to use data URI for buffer consistency with createArticle
+      const uploadResult = await cloudinary.uploader.upload(`data:${file.mimetype};base64,${file.buffer.toString('base64')}`, {
         resource_type: "auto",
         folder: "agridynamic_articles"
       });
@@ -154,9 +177,17 @@ const updateArticle = asyncHandler(async (req, res) => {
 
   // Construct update data, including the new image URL if it changed
   const updateData = { ...req.body };
-  if (req.body.contributors && typeof req.body.contributors === 'string') {
-    updateData.contributors = JSON.parse(req.body.contributors); // Parse if sent as JSON string
+
+  // --- FIX: Use the helper to parse contributors string for update ---
+  if (req.body.contributors !== undefined) { // Check if the field was even sent
+    updateData.contributors = parseCommaSeparatedString(req.body.contributors);
+  } else if (entry.contributors) { // If not sent in req.body, but exists on entry, ensure it's kept as an array
+      updateData.contributors = entry.contributors;
+  } else {
+      updateData.contributors = []; // Default to empty array if neither exists
   }
+
+
   updateData.image = finalImageUrl; // Set the image field to the resolved URL
 
   const updatedEntry = await Article.findByIdAndUpdate(
