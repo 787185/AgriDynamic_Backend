@@ -1,24 +1,19 @@
 // backend/controllers/articleController.js
 const asyncHandler = require('express-async-handler');
 const Article = require('../models/articleModel');
-const cloudinary = require('../config/cloudinaryConfig'); // Import Cloudinary config
-const multer = require('multer'); // Import multer
+const User = require('../models/userModel'); // Keep if you use it for user-related logic
+const cloudinary = require('../config/cloudinaryConfig');
+const multer = require('multer');
 
-// Configure multer for memory storage
-// Files are stored in memory (as buffers) before being uploaded to Cloudinary.
-// This is crucial because Render's file system is ephemeral.
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-// Export a middleware function to use in routes.
-// 'image' here refers to the name of the field in your FormData from the frontend.
-exports.uploadImage = upload.single('image');
+const uploadImage = upload.single('image'); // Declare it as a local constant
 
 // @desc    Create a new project/article entry
 // @route   POST /api/articles
-// @access  Private (Admin or Authorized User) - Adjust access as needed
+// @access  Private (Admin or Authorized User)
 const createArticle = asyncHandler(async (req, res) => {
-  // Deconstruct necessary fields from req.body
   const {
     title,
     description,
@@ -33,50 +28,51 @@ const createArticle = asyncHandler(async (req, res) => {
     published,
   } = req.body;
 
-  // Access the uploaded file (if any) from req.file (thanks to multer)
-  const file = req.file;
-  // Access the image URL directly provided (if any) from req.body.image
-  const imageUrlFromUrlInput = req.body.image;
+  const file = req.file; // The uploaded file buffer (from multer)
+  const imageUrlFromUrlInput = req.body.image; // The URL string if provided directly
 
-  // Basic validation for core fields
+  // --- FIX 2: Declare finalImageUrl with let ---
+  let finalImageUrl;
+
+  // --- FIX 3: Corrected validation logic for image ---
   if (!title || !description) {
     res.status(400);
     throw new Error('Please include title and description.');
   }
 
-  let finalImageUrl;
-
   if (file) {
-    // If a file was uploaded, upload it to Cloudinary
     try {
-      // Upload the buffer to Cloudinary (base64 string representation)
       const uploadResult = await cloudinary.uploader.upload(file.buffer.toString('base64'), {
-        resource_type: "auto", // Automatically detect image/video type
-        folder: "agridynamic_articles" // Optional: organize uploads in a specific folder
+        resource_type: "auto",
+        folder: "agridynamic_articles"
       });
-      finalImageUrl = uploadResult.secure_url; // Get the secure URL from Cloudinary
+      finalImageUrl = uploadResult.secure_url;
     } catch (error) {
       console.error("Cloudinary upload failed:", error);
       res.status(500);
       throw new Error('Image upload failed. Please try again.');
     }
   } else if (imageUrlFromUrlInput) {
-    // If no file, but a URL was provided in the form
     finalImageUrl = imageUrlFromUrlInput;
   } else {
-    // If neither a file nor a URL was provided and image is considered required
+    // This case means no file and no URL was provided
     res.status(400);
     throw new Error('Please provide an image URL or upload an image file.');
   }
 
-  // Create the new article/project entry in MongoDB
+  // Optional: Check for user (author) via protect middleware - uncomment if needed
+  // if (!req.user || !req.user.id) {
+  //   res.status(401);
+  //   throw new Error('Not authorized, user token required');
+  // }
+
   const newEntry = await Article.create({
     title,
     description,
     image: finalImageUrl, // Save the Cloudinary URL or direct URL
-    published: published !== undefined ? published : false, // Default to false if not provided
+    published: published !== undefined ? published : false,
     contributors: contributors ? JSON.parse(contributors) : [], // Parse if sent as JSON string from FormData
-    status: status || 'upcoming', // Default status if not provided
+    status: status || 'upcoming',
     background,
     methodology,
     results,
@@ -88,9 +84,34 @@ const createArticle = asyncHandler(async (req, res) => {
   res.status(201).json(newEntry);
 });
 
+// @desc    Get a subset of fields for cards view
+// @route   GET /api/articles/cards
+// @access  Public
+const getArticlesForCards = asyncHandler(async (req, res) => {
+  const articles = await Article.find({ status: { $in: ['completed', 'in-progress','archived','upcoming'] } })
+          .select('title description image createdAt contributors status')
+          .sort({ createdAt: -1 });
+
+  res.status(200).json(articles);
+});
+
+// @desc    Get all fields for a single entry (article page)
+// @route   GET /api/articles/:id
+// @access  Public
+const getArticleById = asyncHandler(async (req, res) => {
+  const entry = await Article.findById(req.params.id);
+
+  if (!entry) {
+    res.status(404);
+    throw new Error('Entry not found (Project or Article)');
+  }
+
+  res.status(200).json(entry);
+});
+
 // @desc    Update an existing entry
 // @route   PUT /api/articles/:id
-// @access  Private (Admin or Entry Author) - Adjust access as needed
+// @access  Private (Admin or Entry Author)
 const updateArticle = asyncHandler(async (req, res) => {
   const entry = await Article.findById(req.params.id);
 
@@ -98,6 +119,12 @@ const updateArticle = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error('Entry not found');
   }
+
+  // Optional: Check if the logged-in user is the author or an admin - uncomment if needed
+  // if (entry.author && req.user && entry.author.toString() !== req.user.id.toString()) {
+  //   res.status(401);
+  //   throw new Error('Not authorized to update this entry');
+  // }
 
   const file = req.file; // The uploaded file from multer
   const imageUrlFromUrlInput = req.body.image; // If user provides a URL directly
@@ -126,9 +153,9 @@ const updateArticle = asyncHandler(async (req, res) => {
   // Construct update data, including the new image URL if it changed
   const updateData = { ...req.body };
   if (req.body.contributors && typeof req.body.contributors === 'string') {
-      updateData.contributors = JSON.parse(req.body.contributors); // Parse if sent as JSON string
+    updateData.contributors = JSON.parse(req.body.contributors); // Parse if sent as JSON string
   }
-  updateData.image = finalImageUrl;
+  updateData.image = finalImageUrl; // Set the image field to the resolved URL
 
   const updatedEntry = await Article.findByIdAndUpdate(
     req.params.id,
@@ -139,20 +166,52 @@ const updateArticle = asyncHandler(async (req, res) => {
   res.status(200).json(updatedEntry);
 });
 
-// IMPORTANT: Make sure your getArticleById function does NOT use .populate('author')
-// based on our previous conversation. It should look like this:
-const getArticleById = asyncHandler(async (req, res) => {
-  const entry = await Article.findById(req.params.id); // No .populate('author')
+// @desc    Delete an entry
+// @route   DELETE /api/articles/:id
+// @access  Private (Admin or Entry Author)
+const deleteArticle = asyncHandler(async (req, res) => {
+  const entry = await Article.findById(req.params.id);
 
   if (!entry) {
     res.status(404);
-    throw new Error('Entry not found (Project or Article)');
+    throw new Error('Entry not found');
   }
 
-  res.status(200).json(entry);
+  // Optional: Check if the logged-in user is the author or an admin - uncomment if needed
+  // if (entry.author && req.user && entry.author.toString() !== req.user.id.toString()) {
+  //   res.status(401);
+  //   throw new Error('Not authorized to delete this entry');
+  // }
+
+  // Optional: If you want to delete the image from Cloudinary when the article is deleted,
+  // you'd extract the public ID from the URL and use cloudinary.uploader.destroy()
+  /*
+  if (entry.image && entry.image.includes('cloudinary.com')) {
+    try {
+      // Assuming a simple path structure for public ID
+      const parts = entry.image.split('/');
+      const publicIdWithExtension = parts[parts.length - 1]; // e.g., "my_image_123.jpg"
+      const publicId = 'agridynamic_articles/' + publicIdWithExtension.split('.')[0]; // e.g., "agridynamic_articles/my_image_123"
+      await cloudinary.uploader.destroy(publicId);
+      console.log(`Deleted Cloudinary image: ${publicId}`);
+    } catch (error) {
+      console.error('Failed to delete image from Cloudinary:', error);
+    }
+  }
+  */
+
+  await entry.deleteOne();
+
+  res.status(200).json({ id: req.params.id, message: 'Entry removed' });
 });
 
-// ... (other controller functions like getArticles, getArticlesForCards, deleteArticle) ...
+// @desc    Get all articles (for admin panel, usually includes all fields)
+// @route   GET /api/articles
+// @access  Public (or Private if you add auth middleware)
+const getArticles = asyncHandler(async (req, res) => {
+  const articles = await Article.find().sort({ createdAt: -1 });
+  res.status(200).json(articles);
+});
 
 module.exports = {
   createArticle,
@@ -161,5 +220,5 @@ module.exports = {
   updateArticle,
   deleteArticle,
   getArticles,
-  uploadImage, // Export the multer middleware
+  uploadImage,
 };
