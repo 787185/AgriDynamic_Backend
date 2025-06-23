@@ -14,6 +14,7 @@ const uploadImage = upload.single('image'); // Declare it as a local constant
 // @route   POST /api/articles
 // @access  Private (Admin or Authorized User)
 const createArticle = asyncHandler(async (req, res) => {
+  console.log('1. createArticle: Function entered.');
   const {
     title,
     description,
@@ -28,61 +29,77 @@ const createArticle = asyncHandler(async (req, res) => {
     published,
   } = req.body;
 
+  console.log('2. createArticle: Destructured req.body. Title:', title, 'Description:', description);
   const file = req.file; // The uploaded file buffer (from multer)
   const imageUrlFromUrlInput = req.body.image; // The URL string if provided directly
 
-  // --- FIX 2: Declare finalImageUrl with let ---
   let finalImageUrl;
 
-  // --- FIX 3: Corrected validation logic for image ---
   if (!title || !description) {
+    console.log('3a. createArticle: Missing title or description.');
     res.status(400);
     throw new Error('Please include title and description.');
   }
 
+  console.log('3b. createArticle: Title and description present.');
+
   if (file) {
+    console.log('4a. createArticle: File detected, attempting Cloudinary upload.');
     try {
       const uploadResult = await cloudinary.uploader.upload(file.buffer.toString('base64'), {
         resource_type: "auto",
         folder: "agridynamic_articles"
       });
       finalImageUrl = uploadResult.secure_url;
+      console.log('4a.i. createArticle: Cloudinary upload successful. URL:', finalImageUrl);
     } catch (error) {
-      console.error("Cloudinary upload failed:", error);
+      console.error("4a.ii. Cloudinary upload failed with specific error:", error); // This should definitely show up
       res.status(500);
       throw new Error('Image upload failed. Please try again.');
     }
   } else if (imageUrlFromUrlInput) {
+    console.log('4b. createArticle: Image URL provided directly.');
     finalImageUrl = imageUrlFromUrlInput;
   } else {
-    // This case means no file and no URL was provided
+    console.log('4c. createArticle: No file and no URL provided.');
     res.status(400);
     throw new Error('Please provide an image URL or upload an image file.');
   }
 
-  // Optional: Check for user (author) via protect middleware - uncomment if needed
-  // if (!req.user || !req.user.id) {
-  //   res.status(401);
-  //   throw new Error('Not authorized, user token required');
-  // }
+  console.log('5. createArticle: Image URL resolved to:', finalImageUrl);
 
-  const newEntry = await Article.create({
-    title,
-    description,
-    image: finalImageUrl, // Save the Cloudinary URL or direct URL
-    published: published !== undefined ? published : false,
-    contributors: contributors ? JSON.parse(contributors) : [], // Parse if sent as JSON string from FormData
-    status: status || 'upcoming',
-    background,
-    methodology,
-    results,
-    conclusions,
-    recommendations,
-    application,
-  });
+  // Parse contributors before creating entry
+  const parsedContributors = contributors ? JSON.parse(contributors) : [];
+  console.log('6. createArticle: Parsed contributors:', parsedContributors);
 
-  res.status(201).json(newEntry);
+
+  try {
+    const newEntry = await Article.create({
+      title,
+      description,
+      image: finalImageUrl,
+      published: published !== undefined ? published : false,
+      contributors: parsedContributors,
+      status: status || 'upcoming',
+      background,
+      methodology,
+      results,
+      conclusions,
+      recommendations,
+      application,
+    });
+    console.log('7. createArticle: Article created in DB. ID:', newEntry._id);
+    res.status(201).json(newEntry);
+    console.log('8. createArticle: Response sent.');
+  } catch (dbError) {
+    console.error("9. createArticle: Database creation failed:", dbError);
+    res.status(500);
+    throw new Error('Failed to create article in database.');
+  }
 });
+
+//   res.status(201).json(newEntry);
+// });
 
 // @desc    Get a subset of fields for cards view
 // @route   GET /api/articles/cards
