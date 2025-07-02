@@ -1,5 +1,5 @@
 // backend/controllers/partnerController.js
-const Partner = require('../models/Partner'); // Adjust path if necessary
+const Partner = require('../models/partners'); // Adjust path if necessary
 
 // @desc    Create a new partner
 // @route   POST /api/partners
