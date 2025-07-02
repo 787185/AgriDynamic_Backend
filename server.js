@@ -42,6 +42,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/enquiries', enquiryRoutes);
 app.use('/api/articles', articleRoutes);
 app.use('/api/volunteers', volunteerRoutes);
+app.use('/api/partners', partnerRoutes);
 
 // Connect to MongoDB
 mongoose.connect(mongoUri)
