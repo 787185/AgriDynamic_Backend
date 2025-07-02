@@ -74,7 +74,7 @@ const createArticle = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Please provide an image URL or upload an image file.');
   }
-
+ 
   console.log('5. createArticle: Image URL resolved to:', finalImageUrl);
 
   // --- FIX: Use the helper to parse contributors string ---

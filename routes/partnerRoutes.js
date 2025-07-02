@@ -1,15 +1,13 @@
 // backend/routes/partnerRoutes.js
+
 const express = require('express');
 const router = express.Router();
-const {
-  createPartner,
-  getPartners,
-  deletePartner
-} = require('../controllers/partnerController'); // <--- Import from controller
+// Import the partner-specific Multer instance and the controller functions
+const { partnerUpload, createPartner, getPartners, updatePartner, deletePartner } = require('../controllers/partnerController');
 
-// Define routes using controller functions
-router.post('/', createPartner);
+router.post('/', partnerUpload.single('logo'), createPartner); // Use partner-specific upload middleware
 router.get('/', getPartners);
+router.put('/:id', partnerUpload.single('logo'), updatePartner); // Use partner-specific upload middleware
 router.delete('/:id', deletePartner);
 
 module.exports = router;
