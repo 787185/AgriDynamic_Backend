@@ -5,7 +5,7 @@ const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/auth');
 const articleRoutes = require('./routes/articleRoutes');
 const volunteerRoutes = require('./routes/volunteerRoute');
-const partnerRoutes = require('./require('./routes/partnerRoutes');
+const partnerRoutes = require('./routes/partnerRoutes');
 const enquiryRoutes = require('./routes/enquiryRoutes.js')
 
 
