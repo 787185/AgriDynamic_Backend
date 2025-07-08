@@ -16,6 +16,7 @@ const app = express();
 
 // Middleware
 const allowedOrigins = [
+  'https://agridynamic.net', 
   'https://agri-dynamic-1kq7.vercel.app', 
   'http://localhost:5173',               
   

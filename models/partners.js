@@ -8,8 +8,9 @@ const partnerSchema = new mongoose.Schema({
     trim: true,
   },
   logo: {
-    type: String, // Storing the URL or path to the logo image
-    required: true,
+    type: String,
+    required: false, // Storing the URL or path to the logo image
+    
   },
   description: {
     type: String,
@@ -17,7 +18,7 @@ const partnerSchema = new mongoose.Schema({
   },
   link: {
     type: String, // The URL for the partner's website
-    required: true,
+    required: false,
     trim: true,
   },
 }, {
